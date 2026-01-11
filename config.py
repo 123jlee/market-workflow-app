@@ -32,7 +32,7 @@ BQ_QUERY_WEEKLY_LEVELS = f"""
         value_overlap_pct, 
         coverage_flag
     FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`
-    WHERE timeframe = 'Weekly'
+    WHERE timeframe = 'W'
       AND period_start_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 21 DAY)
     ORDER BY period_start_date DESC
 """
