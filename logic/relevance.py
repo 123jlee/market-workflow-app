@@ -1,38 +1,52 @@
+"""
+Stage 1 Logic: Relevance Band Classification
+
+Classifies markets into:
+- Trade Ready (was: Structurally Relevant)
+- Watch (was: Contextually Watchable)
+- Ignore for Now (was: Structurally Uninteresting)
+"""
+
+
 def classify_relevance(context_df):
     """
+    Classifies each row into a relevance band based on regime, interaction, warnings.
+    
     Inputs:
-    - context_df: Output of calculate_context_primitives.
+    - context_df: Output of calculate_trade_ready_context
     
     Output:
-    - df with 'relevance_band' column.
+    - df with 'relevance_band' column
     """
     if context_df.empty:
         return context_df
 
     def _get_band(row):
-        flags = row['flags']
-        state = row['weekly_auction_state']
-        loc_w = row['price_loc_w']
-        align = row['dw_alignment']
+        warnings = row.get('warnings', [])
+        regime = row.get('regime_w1', 'TRANSITIONAL')
+        interaction = row.get('now_interaction_w1', 'UNKNOWN')
         
-        # 1. Uninteresting - Only if COMPRESSION, or PINNED in BALANCED context
-        if 'COMPRESSION' in flags:
-            return 'Structurally Uninteresting'
-        if 'PINNED' in flags and state == 'BALANCED':
-            return 'Structurally Uninteresting'
+        # 1. Ignore if COMPRESSED (regardless of other factors)
+        if 'COMPRESSED' in warnings:
+            return 'Ignore for Now'
+        
+        # 2. Ignore if PINNED in BALANCED context (no movement expected)
+        if 'PINNED' in warnings and regime == 'BALANCED':
+            return 'Ignore for Now'
             
-        # 2. Relevant (Ready for Action)
+        # 3. Trade Ready (actionable structure)
         # Testing a key level OR Trending/Transitional structure
-        if loc_w == 'TEST_POC':
-            return 'Structurally Relevant'
-        if state in ['TRENDING', 'TRANSITIONAL']:
-            return 'Structurally Relevant'
+        if interaction in ['TEST_POC', 'TEST_VAL', 'TEST_VAH']:
+            return 'Trade Ready'
+        if regime in ['TRENDING', 'TRANSITIONAL']:
+            return 'Trade Ready'
             
-        # 3. Watchable (Sound but not active)
-        if state == 'BALANCED' and loc_w == 'INSIDE':
-            return 'Contextually Watchable'
+        # 4. Watch (sound but not yet at actionable levels)
+        if regime == 'BALANCED' and interaction == 'INSIDE_VALUE':
+            return 'Watch'
             
-        return 'Structurally Uninteresting'
+        return 'Ignore for Now'
 
+    context_df = context_df.copy()
     context_df['relevance_band'] = context_df.apply(_get_band, axis=1)
     return context_df

@@ -1,33 +1,37 @@
 import pandas as pd
 from google.cloud import bigquery
-import streamlit as st
 import config
 
 class BigQueryService:
     def __init__(self):
-        # Streamlit caching for BQ client if needed, or standard init
         self.project_id = config.PROJECT_ID
+        self._client = None
         
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def get_structural_levels(_self):
+    @property
+    def client(self):
+        """Lazy-load BQ client."""
+        if self._client is None:
+            self._client = bigquery.Client(project=self.project_id)
+        return self._client
+        
+    def get_weekly_levels(self):
         """
-        Fetches the authoritative levels_final table.
-        Returns a DataFrame indexed by symbol.
+        Fetches Weekly levels (W-1 with prior columns for W-2).
+        No caching here - controlled by session_state in main.py.
+        Returns a DataFrame.
         """
         try:
-            client = bigquery.Client(project=_self.project_id)
-            query = config.BQ_QUERY_LEVELS
-            df = client.query(query).to_dataframe()
+            query = config.BQ_QUERY_WEEKLY_LEVELS
+            df = self.client.query(query).to_dataframe()
             return df
         except Exception as e:
-            st.error(f"BigQuery Error: {e}")
-            return pd.DataFrame()
+            raise Exception(f"BigQuery Error: {e}")
 
     def get_active_universe(self):
         """
-        Returns a list of symbols that have structural coverage.
+        Returns a list of symbols that have weekly structural coverage.
         """
-        df = self.get_structural_levels()
+        df = self.get_weekly_levels()
         if not df.empty:
             return df['symbol'].unique().tolist()
         return []
