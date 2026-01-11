@@ -14,14 +14,15 @@ import numpy as np
 import config
 
 
-def calculate_trade_ready_context(weekly_df, current_prices):
+def calculate_trade_ready_context(weekly_df, current_prices, include_developing=False):
     """
     Master function: Transforms raw weekly BQ data + Binance prices into
     a trader-readable context DataFrame.
     
     Inputs:
-    - weekly_df: DataFrame from BQ with W-1 weekly rows (includes prior_final_* for W-2)
+    - weekly_df: DataFrame from BQ with weekly rows
     - current_prices: Series {symbol: price} from Binance
+    - include_developing: If False, only use finalized weeks (prior to current week start)
     
     Output:
     - DataFrame with one row per symbol, all new columns
@@ -33,18 +34,33 @@ def calculate_trade_ready_context(weekly_df, current_prices):
     df = weekly_df.copy()
     df['symbol_clean'] = df['symbol'].str.replace('.P', '', regex=False)
     
-    # 2. Get latest row per symbol (W-1)
-    df = df.sort_values('period_start_date', ascending=False)
-    df = df.drop_duplicates('symbol_clean').set_index('symbol_clean')
+    # 2. Determine Current Week Start (Monday)
+    now = config.get_current_utc()
+    # weekday() is 0 for Monday, 6 for Sunday
+    current_week_start = (now - pd.Timedelta(days=now.weekday())).date()
     
-    # 3. Join current prices
+    # 3. Filter for Developing vs Finalized
+    df['period_start_date'] = pd.to_datetime(df['period_start_date']).dt.date
+    if not include_developing:
+        # Finalized only: Must be strictly before current week start
+        df = df[df['period_start_date'] < current_week_start]
+    
+    # Sort to ensure we get the latest available row for the chosen mode
+    df = df.sort_values('period_start_date', ascending=False)
+    df = df.drop_duplicates('symbol_clean')
+    
+    # Mark if it's developing
+    df['is_developing'] = df['period_start_date'] >= current_week_start
+    df = df.set_index('symbol_clean')
+    
+    # 4. Join current prices
     df['price'] = current_prices
     df = df.dropna(subset=['price'])
     
     if df.empty:
         return pd.DataFrame()
     
-    # 4. Convert numeric columns (Decimal -> float)
+    # 5. Convert numeric columns (Decimal -> float)
     numeric_cols = ['final_poc', 'final_vah', 'final_val', 
                     'prior_final_poc', 'prior_final_vah', 'prior_final_val',
                     'va_width_pct', 'poc_change_pct', 'value_overlap_pct']
@@ -54,7 +70,7 @@ def calculate_trade_ready_context(weekly_df, current_prices):
     
     df['price'] = df['price'].astype(float)
     
-    # 5. Compute all derived columns
+    # 6. Compute all derived columns
     df['regime_w1'] = df.apply(compute_regime, axis=1)
     df['htf_dir_w1'] = df.apply(compute_htf_direction, axis=1)
     df['now_interaction_w1'] = df.apply(compute_interaction_tag, axis=1)
@@ -172,6 +188,10 @@ def compute_warnings(row):
     coverage = row.get('coverage_flag', '')
     if coverage and coverage.lower() not in ['full', 'complete', '']:
         warnings.append('LOW_CONFIDENCE')
+    
+    # DEVELOPING (W-0)
+    if row.get('is_developing'):
+        warnings.append('DEVELOPING')
     
     # COMPRESSED
     va_width = row.get('va_width_pct')

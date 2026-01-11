@@ -41,13 +41,16 @@ if st.session_state.refresh_timestamp:
 else:
     st.sidebar.caption("🔄 No data loaded yet")
 
+# Developing Week Toggle
+include_dev = st.sidebar.checkbox("Include Developing Week (W-0)", value=False)
+
 # Refresh button
 if st.sidebar.button("🔄 Refresh Snapshot", type="primary"):
     with st.spinner("Loading data..."):
         try:
             weekly_df = bq_service.get_weekly_levels()
             prices_series = binance_service.get_current_prices()
-            context_df = calculate_trade_ready_context(weekly_df, prices_series)
+            context_df = calculate_trade_ready_context(weekly_df, prices_series, include_developing=include_dev)
             classified_df = classify_relevance(context_df)
             st.session_state.trade_ready_df = classified_df
             st.session_state.refresh_timestamp = config.get_current_utc()
@@ -104,7 +107,7 @@ with tab1:
             with col6:
                 warning_filter = st.multiselect(
                     "Warnings (include any)",
-                    options=['LOW_CONFIDENCE', 'COMPRESSED', 'PINNED', 'EXTENDED'],
+                    options=['LOW_CONFIDENCE', 'COMPRESSED', 'PINNED', 'EXTENDED', 'DEVELOPING'],
                     default=[]
                 )
         
