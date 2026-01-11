@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Secrets
+credentials.json
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+*.log

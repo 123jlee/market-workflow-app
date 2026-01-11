@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: market_workflow
+    ports:
+      - "8501:8501"
+    environment:
+      - USE_MOCK_DATA=false
+      # Mount your google credentials JSON here or use gcloud volume
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+    volumes:
+      # Mount current dir for live reload dev
+      - .:/app
+      # Mount GCP Credentials (Update path on VPS)
+      - ~/.config/gcloud:/root/.config/gcloud
+    restart: unless-stopped

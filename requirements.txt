@@ -1,0 +1,9 @@
+streamlit
+google-cloud-bigquery
+pandas
+pandas-gbq
+requests
+ccxt
+plotly
+pyarrow
+db-dtypes
