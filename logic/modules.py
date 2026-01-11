@@ -80,9 +80,9 @@ def _get_alignment(row):
         return 'MIXED'
 
 def _get_price_loc_w(row):
-    p = row['current_price']
-    vah, val = row['final_vah_w'], row['final_val_w']
-    poc = row['final_poc_w']
+    p = float(row['current_price'])
+    vah, val = float(row['final_vah_w']), float(row['final_val_w'])
+    poc = float(row['final_poc_w'])
     tol = poc * 0.005 # 0.5% tolerance
     
     if abs(p - poc) < tol: return 'TEST_POC'
@@ -92,8 +92,8 @@ def _get_price_loc_w(row):
     return 'UNKNOWN'
 
 def _get_price_loc_d(row):
-    p = row['current_price']
-    vah, val = row['final_vah_d'], row['final_val_d']
+    p = float(row['current_price'])
+    vah, val = float(row['final_vah_d']), float(row['final_val_d'])
     
     if val <= p <= vah: return 'INSIDE'
     if p > vah: return 'ABOVE'
@@ -103,14 +103,14 @@ def _get_price_loc_d(row):
 def _get_flags(row):
     flags = []
     # 1. Compression
-    width = row.get('va_width_pct_w', 0.05)
+    width = float(row.get('va_width_pct_w', 0.05) or 0.05)
     if width < 0.015: # < 1.5% VA width is very tight for Crypto Weekly
         flags.append('COMPRESSION')
         
     # 2. Pinned (Price stuck at Weekly POC)
-    # Check if close_dist_to_poc (from BQ) is tiny, AND current price is still there?
-    # We will compute live distance
-    dist = abs(row['current_price'] - row['final_poc_w']) / row['final_poc_w']
+    poc_w = float(row['final_poc_w'])
+    current_price = float(row['current_price'])
+    dist = abs(current_price - poc_w) / poc_w if poc_w else 0
     if dist < 0.002: # 0.2% from POC
         flags.append('PINNED')
         

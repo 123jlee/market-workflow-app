@@ -1,5 +1,3 @@
-import pandas as pd
-
 def classify_relevance(context_df):
     """
     Inputs:
@@ -17,8 +15,10 @@ def classify_relevance(context_df):
         loc_w = row['price_loc_w']
         align = row['dw_alignment']
         
-        # 1. Uninteresting
-        if 'COMPRESSION' in flags or 'PINNED' in flags:
+        # 1. Uninteresting - Only if COMPRESSION, or PINNED in BALANCED context
+        if 'COMPRESSION' in flags:
+            return 'Structurally Uninteresting'
+        if 'PINNED' in flags and state == 'BALANCED':
             return 'Structurally Uninteresting'
             
         # 2. Relevant (Ready for Action)
